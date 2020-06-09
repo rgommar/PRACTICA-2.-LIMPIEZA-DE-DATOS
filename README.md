@@ -1,6 +1,6 @@
 # PRACTICA-2.-LIMPIEZA-DE-DATOS
 
-### Descripción
+## Descripción
 Esta práctica se ha realizado bajo el contexto de la asignatura Tipología y ciclo de vida de los datos, perteneciente al Máster en Ciencia de Datos de la Universitat Oberta de Catalunya. En ella, se aplican técnicas de limpieza y analisis de datos mediante el lenguaje de programación R para extraer así un análisis del set de datos redwine.csv.
 
 ## Miembros del equipo
