@@ -15,6 +15,7 @@ Respuestas y componentes.pdf : contiene las respuestas a las preguntas que se pl
 
 ## Dataset
 redwine.csv : archivo csv de partida, contiene los datos en brutos inicialmente descargados.
+
 redwine_clean.csv : archivo resultante tras la limpieza y análisis de los datos. Unicamente contiene las variables analizadas.
 
 ## Recursos
