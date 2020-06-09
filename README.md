@@ -9,6 +9,8 @@ La práctica ha sido realizada por Rubén Gómez Márquez y Andrés Felipe Bello
 ## Ficheros del código fuente
 PRACTICA2_final.Rmd : contiene todo el código debidamente comentado para poder comprenderlo con facilidad.
 
+## Otros archivos
+
 PRACTICA2_final.html : contiene un archivo generado por RMarkdown de RStudio para visualizar de forma más cómoda las gráficas y tablas.
 
 Respuestas y componentes.pdf : contiene las respuestas a las preguntas que se plantean en el estudio y las contribuciones de los integrantes del trabajo.
