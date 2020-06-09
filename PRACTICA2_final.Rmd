@@ -1,0 +1,545 @@
+---
+title: "PRACTICA 2. ANÁLISIS DE LA CALIDAD DE VINOS ROJOS"
+author: "Rubén Gómez Marquez y Andrés Felipe Bello Zapata"
+date: "30/5/2020"
+output: html_document
+---
+
+
+# 1. DESCRIPCIÓN DEL DATASET
+
+En esta primera parte visualizaremos el dataset y describiremos las variables que lo componen, tratando de entender que preguntas o problemas pueden ayudarnos a responder.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#CARGA DEL ARCHIVO
+redwine<-read.csv("redwine.csv",sep=",",na.string="NA",header = TRUE)
+#PRIMERA VISUALIZACIÓN
+head(redwine, max(10))
+#ESTRUCTURA DEL DATASET
+str(redwine)
+```
+## 1.1 Descripción de los atributos
+
+En este data set se describen las propiedades químicas de un conjunto de vinos rojos procedentes del norte de Portugal. Estos vinos están clasificados por puntuaciones basadas en la opinión personal.
+
+Todos los atributos del dataset son variables numéricas y continuas, excepto quality que es una variable tipo int, es decir, numérica discreta (enteros):
+
+fixed.acidity: acidez fija. (ácido tartárico - g / dm^3)
+volatile.acidity: acidez volatil. (ácido acético - g / dm^3)
+citric.acid: acidez citrica.(g / dm^3)
+residual.sugar:azucar residual.(g / dm^3)
+chlorides:cloruros.(cloruro sódico - g / dm^3 )
+free.sulfur.dioxide:dióxido de azufre libre. (mg / dm^3)
+total.sulfur.dioxide:dióxido de azufre total.(mg / dm^3)
+density:densidad.(g / cm^3)
+pH:ph.
+sulphates:sulfatos.(sulfato potásico - g / dm3)
+alcohol:alcohol.(% por volumen)
+quality: calidad del vino según una opinión personal 0-10.
+
+## 1.2 Motivaciones 
+
+Este dataset puede ayudarnos a comprender, desde un punto de vista químico, que propiedades debe tener un vino para que guste a los consumidores. Preguntas que siguen la linea de: ¿qué grado de alcohol prefieren los consumidores?. Y de está forma con cualquier propiedad química del vino.
+
+# 2. INTEGRACIÓN Y SELECCIÓN DE LOS DATOS DE INTERÉS A ANALIZAR
+
+En esta etapa no haremos ningún tipo de integración de datos ya que solo  tenemos este dataset con el cual trabajar.
+
+## 2.1 Comprobación de la normalidad y homogeneidad de la varianza.
+
+Previo a realizar la reducción de dimensionalidad es necesario verificar si cada una de las columnas presenta una distribución normal. Lo anterior con el fin de determinar que modelo estadístico implementar. Para ello se emplea el test Shapiro que, determina si una columna tiene una distribución normal basado en el valor de la variable p, la cual cuando asume valores superiores a 0.05 permite confirmar la hipotesis nula, concluyendo que los datos presentan una distribución normal.
+
+Test Shapiro para la columna fixed acidity
+
+```{r}
+shapiro.test(redwine$fixed.acidity)
+```
+Test Shapiro para la columna volatile acidity
+
+```{r}
+shapiro.test(redwine$volatile.acidity)
+```
+Test Shapiro para la columna citric acid
+
+```{r}
+shapiro.test(redwine$citric.acid)
+```
+Test Shapiro para la columna residual sugar
+
+```{r}
+shapiro.test(redwine$residual.sugar)
+```
+
+Test Shapiro para la columna chlorides
+
+```{r}
+shapiro.test(redwine$chlorides)
+```
+
+Test Shapiro para la columna total sulfur dioxide
+
+```{r}
+shapiro.test(redwine$total.sulfur.dioxide)
+```
+
+Test Shapiro para la columna density
+
+```{r}
+shapiro.test(redwine$density)
+```
+
+Test Shapiro para la columna ph
+
+```{r}
+shapiro.test(redwine$pH)
+```
+
+Test Shapiro para la columna sulphates
+
+```{r}
+shapiro.test(redwine$sulphates)
+```
+
+Test Shapiro para la columna alcohol
+
+```{r}
+shapiro.test(redwine$alcohol)
+```
+
+Test Shapiro para la columna quality
+
+```{r}
+shapiro.test(redwine$quality)
+```
+
+Se evidencia que todas las columnas tienen valores inferiores a 0.05 por lo tanto se rechaza la hipotesis nula y se confirma que nignuna las columnas relacionadas presentan una distribución normal.
+
+Se aplica un modelo de PCA (Principal Component Analysis) con el fin de determinar si es viable realizar un proceso de reducción de datos, de tal forma que se obtenga un conjunto de menos dimensiones. Lo anterior considerando que este modelo no supervisado puede ser aplicado a datos que no presentan una distribución normal, como se identificó en el análisis de Shapiro realizada a cada una de las columnas. Inicialmente se aplica el metodo y se realiza un proceso de escala para todas las variables del dataset, de tal forma que los valores de las columnas queden en el rango de 0 a 1.
+
+El metodo rotation permite identificar que efectivamente se genera un componente principal por cada una de las variables, relacionando en cada una de ellas el porcentaje de participación que tendría cada una de las variables.
+
+```{r}
+pca <- prcomp(redwine, scale = TRUE)
+pca$rotation
+```
+
+Una vez se visualizan los componentes principales se procede a verificar la desviación estandar con el fin de identificar que efectivamente cada una de las columnas del PCA presenta una desviación estandar menor. Lo anterior indica que el modelo es aplicado de manera correcta abarcando en cada componente prinicipal una mayor cantidad de datos.
+
+```{r}
+print(pca$sdev)
+```
+
+Finalmente se analiza la proporción acumulada con el fin de determinar el nivel de precisión que nos daria el empleo de cada uno de los componentes principales y determinar si es viable reducir la dimensionalidad de los datos.
+
+```{r}
+summary(pca)
+```
+Del anterior análisis estadístico se logra identificar que mediante el uso de Componente Principales, es posible eliminar una o máximo 2 columnas de la base de datos, manteniendo un nivel presición del 98%, siendo esta una reducción no tan cosiderable, por lo tanto se toma la determinación de analizar el impacto que tiene cada una de las variables independientes en la variable dependiente de QUALITY ques es finalmente la que se desea analizar. De esta forma es mas viable descartar las variables que no influyen de manera considerable en la calidad del vino.
+
+## 2.2 Selección de datos
+
+Por tanto, para realizar la selección de los datos analizaremos la correlación entre las variables con el fin de ver cuales están relacionadas entre sí.De esta forma podremos observar que variables mantienen una mayor relación con la variable calidad, que es la variable que nos interesa analizar y podremos hacer una reducción de variables, quedandonos unicamente con las variables que más contribuyan.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+#Mostramos la matriz de dispersión para visualizar la linealidad entre las variables
+pairs(fixed.acidity ~ volatile.acidity + citric.acid + residual.sugar + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + density + pH + sulphates + alcohol, data = redwine, main="Matriz de correlación", size= 20)
+
+#Mostramos la matriz de correlaciones que nos indica las relaciones entre las diferentes variables.
+round(cor(redwine),2)
+
+
+```
+
+Nos fijamos en la variable que realmente nos interesa para saber que vinos son los mejor valorados, que es la calidad. Esta variable presenta una mayor correlación con la acidez volatil y cítrica, los sulfatos y en mayor medida con el alcohol. Por tanto, estas serán las variables que analizaremos.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#Dividimos el dataset en 2. Por una parte las variables que queremos analizar y por otra parte la variable predictora o analítica (quality) que nos servirá para analizar los vinos.
+variables <- redwine[c(2,3,10,11)]
+calidad<-redwine[12]
+
+```
+
+# 3. LIMPIEZA DE DATOS
+
+## 3.1 Ceros o elementos vacíos.
+
+Analizaremos si el dataset contiene ceros o elementos vacios.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+summary(variables)
+summary(calidad)
+```
+Podemos ver con la función summary un resumen de las variables que queremos analizar. Observamos que no hay elementos vacios (NA's) y a su vez que tenemos ceros en la variable citric.acid.
+
+En caso de encontrarnos con elementos vacíos, se puede proceder de varias formas:
+
+- Eliminando las filas que contienen los valores vacíos. Esto puede ser útil y ahorrarnos bastante trabajo pero solo si tenemos muchas filas y pocos elementos vacíos, de forma que no alteremos la estadística.
+
+- Sustituir los valores vacíos por nulos (NA).
+
+- Aproximarlos por métodos de estadísticos, por ejemplo, sustituirlos por la media. Hay otros métodos como el método de los k vecinos más próximos (k-neighbors), que tratan de rellenar el valor perdido en función de los valores que se encuentran más cerca en el dataset.
+
+Si nos encontrásemos con ceros, habría que interpretar para cada variable si tiene sentido o no. En nuestro caso la variable que indica el ácido cítrico es numérica y continua por lo que en este aspecto si que podríamos tener ceros. Por otra parte en https://www.lavinoteca.info/que-es-la-acidez nos indican que el ácido cítrico es poco abundante en la uva y que despues de la fermentación este desaparece, por tanto si tiene sentido encontrarnos ceros en esta variable.
+
+
+## 3.2 Identificación y tratamiento de valores extremos.
+
+Analizaremos las variables cuantitativas para detectar valores extremos, mediante la generación de diagramas de caja y la función boxplot.stats.
+
+### ÁCIDO VOLATIL (http://urbinavinos.blogspot.com/2011/08/acidez-volatil-en-vinos.html)
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+#Boxplot para obtener los valores extremos
+boxplot(variables$volatile.acidity,main="Acidez volatil",col="red")
+boxplot.stats(variables$volatile.acidity)$out
+#Diagrama de densidad para observar la distribución
+den.vol<-density(variables$volatile.acidity)
+hist(variables$volatile.acidity, main="Acidez volatil", col="red", freq = FALSE, xlab="g/L")
+lines(den.vol,col="blue",lwd=3)
+
+```
+
+Según el blog relacionado en el link (parte inicial del enunciado), que nos habla de la acidez volatil en los vinos, la concentración de ácido acético debe encontrarse entre los 0.2 - 0.6 g/L, ademas cuando esta concentración supera el 1.4 g/L se considera que el vino se ha estropeado.Por tanto, dentro de los valores extremos que tenemos solo podemos considerar que uno de ellos se ha estropeado. De todas formas, observando la distribución vemos que la media esta dentro de lo esperado y sigue una distribución normal, por tanto no es necesario excluir estos datos porque no afectan a la estadística.
+
+### ÁCIDO CÍTRICO (https://www.vinosycavasonline.es/los-aacidos-del-vino.-quae-son-y-caomo-se-forman.)
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+#Boxplot para obtener los valores extremos
+boxplot(variables$citric.acid,main="Ácido cítrico",col="blue")
+boxplot.stats(variables$citric.acid)$out
+#Diagrama de densidad para observar la distribución
+den.cit<-density(variables$citric.acid)
+hist(variables$citric.acid, main="Ácido cítrico", col="blue", freq = FALSE, xlab="g/L")
+lines(den.cit,col="red",lwd=3)
+
+```
+
+Solo encontramos un valor (g/L) de ácido cítrico que se podría considerar como extremo. Según la página relacionada en el link (parte inicial del enunciado), el ácido cítrico se puede encontrar hasta concentraciones de 1 g/L, por lo cual no es un valor erroneo que podemos incluir en la estadística, ya que al ser solo uno no afectará. En cuanto a la distribución, no corresponde a una distribución normal, pero sus valores se encuentran todos dentro de lo esperado (0-1 g/L).
+
+### SULFATOS
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+#Boxplot para obtener los valores extremos
+boxplot(variables$sulphates,main="Sulfatos",col="yellow")
+boxplot.stats(variables$sulphates)$out
+#Diagrama de densidad para observar la distribución
+den.sulf<-density(variables$sulphates)
+hist(variables$sulphates, main="Sulfatos", col="yellow", freq = FALSE, xlab="g/L")
+lines(den.sulf,col="green",lwd=3)
+#Observamos los cuantiles
+x<-quantile(variables$sulphates)
+x
+
+#Eliminamos los outliers superiores a la mitad del ultimo cuantil y creamos un nuevo dataset con estos datos
+redwine$quality[redwine$sulphates>(x[5]+x[4])/2]<-NA
+redwine$sulphates[redwine$sulphates>(x[5]+x[4])/2]<-NA
+data.sulfatos<-redwine[c(10,12)]
+data.sulfatos<-data.sulfatos[!is.na(data.sulfatos$quality),]
+
+#Diagrama sin outliers
+den.sulf<-density(data.sulfatos$sulphates)
+hist(data.sulfatos$sulphates, main="Sulfatos", col="yellow", freq = FALSE, xlab="g/L")
+lines(den.sulf,col="green",lwd=3)
+#Número de outliers eliminados
+sum(is.na(redwine$sulphates))
+
+```
+
+En este caso nos encontrabamos con una gran presencia de valores extremos que si podría afectar a la estadística. Por tanto, se eliminan los que tienen valores superiores a la mitad del último percentil. De esta forma reducimos la influencia de los valores extremos, pero a su vez también los tenemos en cuenta, ya que las puntuaciones son opiniones personales y vinos con una mayor cantidad de concentración de sulfato podrían entrar dentro de los gustos de un tipo de público. Se eliminan 8 outliers correspondientes a los casos más extremos.
+
+### ALCOHOL
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+#Boxplot para obtener los valores extremos
+boxplot(variables$alcohol,main="Alcohol",col="green")
+boxplot.stats(variables$alcohol)$out
+#Diagrama de densidad para observar la distribución
+den.al<-density(variables$alcohol)
+hist(variables$alcohol, main="Alcohol", col="green", freq = FALSE, xlab="% en volumen")
+lines(den.al,col="yellow",lwd=3)
+
+```
+
+En el caso del alcohol tenemos muy pocos valores extremos, por lo que podemos incluirlos, ya que tampoco son valores incoherentes.
+
+
+
+# 4. ANÁLISIS DE DATOS
+
+## 4.1 Selección de los datos y planificación de análisis
+
+Dividiremos el análisis en tres partes sobre las variables que anteriormente hemos seleccionado. El objetivo y la respuesta a contestar es el tratar de aclarar que tipo de vinos son aquellos con la mayor calidad. Para ello analizaremos esta variable, la calidad, frente a la composición química de los vinos, concretamente, la acidez volátil, el ácido cítrico, los sulfatos y el alcohol. Los análisis a realizar son:
+
+1) Regresión lineal simple. Trataremos de ajustar a la ecuación de una recta los datos de la calidad en función de los componentes químicos del vino. La pendiente nos dirá si debemos aumentar o reducir dicho componente para mejorar su calidad.
+Veremos la realineación que hay entre las diferentes variables que tenemos y la puntuación que se le hace a los vinos.Para ello haremos una regresión lineal con el fin de observar los gustos de la gente.
+
+2) Intervalos de confianza. Calcularemos la media y los intervalos de confianza de nuestras variables para poder realizar resoluciones de contrastes de hipótesis bilaterales al 95% de confianza. Preguntas del estilo de ¿Puede ser la media de la calidad de una muestra 8?.
+
+3) Arbol de decisión: Se implementa un modelo supervisado de clasificación de tipo C50, con el fin de identificar las propiedades de las variables seleccionadas que son características de los vinos de alta, media y baja calidad, de acuerdo a la calificación de las diferentes muestras de vino, las cuales se encuentran agrupadas en la variable QUALITY.
+
+
+
+### 4.2.1 Regresión lineal simple (variable dependiente calidad)
+Haremos las rectas de regresión de las diferentes variables frente a la variable dependiente calidad. De esta forma obtenemos un primer modelo que nos permite obtener la calidad a partir del resto de variables.
+
+Para saber si nuestro modelo es viable primero haremos un gráfico para analizar los valores ajustados frente a los residuos. En este gráfico se representan en el eje de ordenadas el valor de los residuos y en el de abcisas los valores ajustados, de forma que si el modelo es bueno no se debería apreciar ninguna estructura y los valores serían cercanos al eje de abcisas.
+
+Por último con un gráfico QQ podemos ver el efectos de los valores atípicos.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#LIBRERIAS PARA LA REPRESENTACIÓN
+library(ggplot2)
+```
+#### ACIDEZ VOLATIL
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+#AJUSTE DE LOS DATOS A LA ECUACIÓN y=ax+b
+lineal<-lm(calidad$quality~volatile.acidity,data=variables)
+summary(lineal)
+
+#REPRESENTACIÓN GRÁFICA
+plot(variables$volatile.acidity,calidad$quality, xlab = "Acidez Volatil", ylab = "Calidad", col="red")
+#RECTA DE REGRESIÓN
+abline(lineal, col="blue")
+
+
+#ANÁLISIS POR RESIDUOS
+ggplot(data=variables, aes(lineal$fitted.values,lineal$residuals)) + geom_point() + geom_hline(yintercept = 0) + geom_smooth(color = "blue") + labs(title = "Residuos", x="Valores ajustados", y="Residuos")
+
+#FUNCION QQNORM PARA REPRESENTAR EL GRÁFICO QUANTIL QUANTIL
+qqnorm(lineal$residuals)
+#LINEA DE TENDENCIA
+qqline(lineal$residuals, col="red")
+```
+La recta se ajusta a los siguientes valores: y = -1.76144x + 6.56575
+
+En el análisis por residuos vemos que los datos presentan una estructura definida, lo cual nos indica que el modelo lineal no se ajusta bien a los datos. Tambien podemos observar este detalle con el valor de R cuadrado, que es de 0.1525, muy bajo.
+
+Vemos que el el gráfico QQ que tenemos valores atípicos y que estos, cuanto más se alejan de la normal, más desajustan los datos. En los primeros cuantiles si se observa normalidad.
+
+#### ÁCIDO CÍTRICO
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+#AJUSTE DE LOS DATOS A LA ECUACIÓN y=ax+b
+lineal<-lm(calidad$quality~citric.acid,data=variables)
+summary(lineal)
+
+#REPRESENTACIÓN GRÁFICA
+plot(variables$citric.acid,calidad$quality, xlab = "Ácido cítrico", ylab = "Calidad", col="red")
+#RECTA DE REGRESIÓN
+abline(lineal, col="blue")
+
+
+#ANÁLISIS POR RESIDUOS
+ggplot(data=variables, aes(lineal$fitted.values,lineal$residuals)) + geom_point() + geom_hline(yintercept = 0) + geom_smooth(color = "blue") + labs(title = "Residuos", x="Valores ajustados", y="Residuos")
+
+#FUNCION QQNORM PARA REPRESENTAR EL GRÁFICO QUANTIL QUANTIL
+qqnorm(lineal$residuals)
+#LINEA DE TENDENCIA
+qqline(lineal$residuals, col="red")
+```
+La recta se ajusta a los siguientes valores: y = 0.93845x + 5.38172
+
+En el análisis por residuos vemos que los datos presentan una estructura definida, lo cual nos indica que el modelo lineal no se ajusta bien a los datos de la misma forma que podemos ver el efecto de algunos valores atípicos. Tambien podemos observar este detalle con el valor de R cuadrado, que es de 0.05065, practicamente cero.
+
+Vemos que el el gráfico QQ no se ajusta bien en ningún cuantil, por lo que indica que la variable no es normal.
+
+#### SULFATOS
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+#Nuevo dataset para la representacion
+
+#AJUSTE DE LOS DATOS A LA ECUACIÓN y=ax+b
+lineal<-lm(quality~sulphates,data=data.sulfatos)
+summary(lineal)
+
+#REPRESENTACIÓN GRÁFICA
+plot(data.sulfatos$sulphates,data.sulfatos$quality, xlab = "Sulfatos", ylab = "Calidad", col="red")
+#RECTA DE REGRESIÓN
+abline(lineal, col="blue")
+
+
+#ANÁLISIS POR RESIDUOS
+ggplot(data=data.sulfatos, aes(lineal$fitted.values,lineal$residuals)) + geom_point() + geom_hline(yintercept = 0) + geom_smooth(color = "blue") + labs(title = "Residuos", x="Valores ajustados", y="Residuos")
+
+#FUNCION QQNORM PARA REPRESENTAR EL GRÁFICO QUANTIL QUANTIL
+qqnorm(lineal$residuals)
+#LINEA DE TENDENCIA
+qqline(lineal$residuals, col="red")
+```
+La recta se ajusta a los siguientes valores: y = 1.65055x + 4.56099
+
+En el análisis por residuos vemos que los datos presentan una estructura definida, lo cual nos indica que el modelo lineal no se ajusta bien a los datos de la misma forma que podemos ver el efecto de algunos valores atípicos. Tambien podemos observar este detalle con el valor de R cuadrado, que es de 0.09256, practicamente cero.
+
+Vemos que el el gráfico QQ no se ajusta bien en ningún cuantil, por lo que indica que la variable no es normal.
+
+#### ALCOHOL
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+#AJUSTE DE LOS DATOS A LA ECUACIÓN y=ax+b
+lineal<-lm(calidad$quality~alcohol,data=variables)
+summary(lineal)
+
+#REPRESENTACIÓN GRÁFICA
+plot(variables$alcohol,calidad$quality, xlab = "Alcohol", ylab = "Calidad", col="red")
+#RECTA DE REGRESIÓN
+abline(lineal, col="blue")
+
+
+#ANÁLISIS POR RESIDUOS
+ggplot(data=variables, aes(lineal$fitted.values,lineal$residuals)) + geom_point() + geom_hline(yintercept = 0) + geom_smooth(color = "blue") + labs(title = "Residuos", x="Valores ajustados", y="Residuos")
+
+#FUNCION QQNORM PARA REPRESENTAR EL GRÁFICO QUANTIL QUANTIL
+qqnorm(lineal$residuals)
+#LINEA DE TENDENCIA
+qqline(lineal$residuals, col="red")
+```
+La recta se ajusta a los siguientes valores: y = 1.87497x + 0.36084
+
+En el análisis por residuos vemos que los datos presentan una estructura definida, lo cual nos indica que el modelo lineal no se ajusta bien a los datos de la misma forma que podemos ver el efecto de algunos valores atípicos. Tambien podemos observar este detalle con el valor de R cuadrado, que es de 0.2263, muy baja, a pesar de ser la que mejor resultados da..
+
+Vemos que el el gráfico QQ se ajusta bien en el primer y segundo cuantil pero no en el resto, donde volvemos a ver presencia de valores atípicos que desajustan mucho el modelo.
+
+
+### 4.2.2 Intervalos de confianza 95%.
+
+Calculando los intervalos de confianza de nuestras variables podremos realizar contrastes de hipótesis bilaterales para conocer en que rangos puede estar la media de una muestra distinta a la nuestra, con una confianza del 95%.
+```{r message= FALSE, warning=FALSE}
+#Para calcular el intervalo de confianza seguiremos la siguiente expresión:
+
+#(M - 1,96*error, M + 1,96*error)
+
+#Donde M es la media muestral, es decir, la media de los valores de nuestra muestra, que es diferente a la media de un bebe al nacer, ya que para ello deberiamos de tener los datos de todos los niños.
+#1,96 es el valor de z*, que se obtiene de las tablas de distribución normal (http://halweb.uc3m.es/esp/Personal/personas/amalonso/esp/Tablas.pdf) para un intervalo de confianza del 95%, ya que equivale a un 2,5% o 0,025 en las tablas de uno de los extremos del area bajo la curva de la distribución.
+#El error no es mas que la desviación típica de la muestra, dividido por la raiz del número de casos, en nuestro caso son 1599 filas.
+
+
+#Para hacerlo implementaremos la función IQ, la cual calculará la media, la desviación tipica, el error y los dos intervalos de confianza, los cuales sacará por pantalla.
+IC<-function(x)
+{desv<-sd(x)
+media<-mean(x)
+error<-desv/(sqrt(length(x)))
+ICmenos<-media-1.96*error
+ICmas<-media+1.96*error
+paste("El intervalo de confianza es","(",ICmenos,",",ICmas,")")
+}
+```
+Ahora calculamos los intervalos de confianza y las medias de nuestras variables.
+
+```{r message= FALSE, warning=FALSE}
+#CALIDAD
+
+mean(calidad$quality)
+IC(calidad$quality)
+
+#ACIDEZ VOLATIL
+
+mean(variables$volatile.acidity)
+IC(variables$volatile.acidity)
+
+#ACIDO CITRICO
+
+mean(variables$citric.acid)
+IC(variables$citric.acid)
+
+#ALCOHOL
+
+mean(variables$alcohol)
+IC(variables$alcohol)
+
+#SULFATOS
+
+mean(data.sulfatos$sulphates)
+IC(data.sulfatos$sulphates)
+```
+
+### 4.2.3 Arbol de decisión
+
+Como parte de la ejecución de modelos estadísticos, se toma la determinación de implementar un modelo supervisado de Decision Tree, con el fin de identificar cuales son las cualidades mas comunes de los vinos que presentan una calificación mayor. Inicialmente filtramos los datos que se van a emplear para dicho analisis. Para ello se emplean las columnas de Acidez volatil, Acido citrico, Alcohol, Sulfatos; las cuales segun el criterio de reducción de dimensión son las que inciden de manera mas considerablen en la variable QUALITY.
+
+De igual forma como parte del proceso de preparación de los datos para implementar el modelo de decision tree, se realiza una discretización de la variablel QUALITY, de tal forma que se sintetice las variables númericas existentes, pasando de tener 10 categorías, siendo cero las mas baja y 10 la mas alta, a tener tan solo 3 categorías: pobre, normal y bueno.
+
+```{r}
+#Previamente para facilitarnos el ver que vinos son mejores o peores los agruparemos por puntuaciones. Asi los catalogaremos de 0-3 como "pobres", de 4-6 como "normales" y de 7-10 como "buenos"
+redwine$quality<-as.factor(redwine$quality)
+levels(redwine$quality)
+levels(redwine$quality)<-c("pobre","pobre","normal","normal","bueno","bueno")
+#Aqui podemos observar
+table(redwine$quality)
+variables_tree <- redwine[c(2,3,10,11,12)]
+```
+
+Una vez seleccionadas se inicia la generación de el arbol de decisión. Para este caso no se realiza como tal partición de los datos para entrenamiento y/o evaluación ya que no se tiene el objetivo de generar un modelo de predicción. Ya que el objetivo del arbol es únicamente identificar si existe algun tipo de cualidad en los vinos que este mas relacionada con una buena calificiació, por lo tanto se emplean el 100% de los datos para entrenamiento
+
+```{r}
+y <- variables_tree[,5]
+X <- variables_tree[,1:4]
+```
+
+Una vez divididas las variables independientes de la variable dependiente se define la variable dependiente quality como un factor.
+
+```{r}
+y <- as.factor(y)
+```
+
+  Una vez se tienen los datos listos se implementa inicialmente el modelo de arbol de decision C50.
+
+```{r}
+tree_model <- C50::C5.0(X,y,rules=TRUE )
+```
+
+Se ejecura el comando print() con el fin de identificar la cantidad de reglas o ramificaciones generadas a partir de la creación del arbol y la cantidad de datos analizados. Previamente se habia generado el arbol empleando los valores categóricos que venian por default en la columna QUALITY, generandose mas de 70 nodo, lo cual indica que los datos no presentan un comportamiento uniforme, siendo la calificación de los vinos altamente subjetividad. 
+
+Una vez implementado el metodo de discretización, se logra identificar que se obtiene un mejor comportamiento de los datos, generandose únicamente 9 nodos, lo cual demuestra un comportamiento mas uniforme en la información.
+
+
+```{r}
+print(tree_model)
+```
+
+Se imprime un resumen del arbol de decision generado logrando identificar cada una de las ramificaciones, en donde se especifica la clase a la que hace referencias y los patrones definidas (mayor, menos, igual) de cada una de las 4 variables. Se logra identificar de igual forma que el arbol presenta un margen de error que aunque no es despreciable si es menor al que se tenía con los datos originales, pasando de tener un error del 22.5% a tan solo un 13%.
+
+Otra factor importante que se logra concluir del presente resumen es el hecho de que de las 4 variables el alcohol es la que tiene mayor determinacion en el momento de definir la calidad de un vino, seguido por los sulfatos, la acidez volatil,  y el acido cítrico. Tambien se logra extraer información relevante respecto a las calificaciones mas altas de calidad, las cuales aunque no presentan un comportamiento uniforme, tienden a presentar niveles bajos de acides volatil, niveles altos de acido cítrico y niveles de sulfato alto. En lo referente al alcohol, es comun que presenten niveles altos, superiores a 10.5 %.
+
+```{r}
+summary(tree_model)
+```
+
+Se genera una gráfica del arbol de decisión la cual no permite evidenciar con claridad los nodos generados, considerando la cantidad de datos generados. Se logra identificar sin embargo que el ROOT o raiz del arbol esta definida por la variable que mas tiene incidencia (Alcohol)
+
+```{r}
+models_graph <- C50::C5.0(X, y, trials=10)
+plot(models_graph)
+```
+
+# 5. BASE DE DATOS LIMPIA
+
+Una vez se realiza el proceso de limpieza de la base de datos y se realiza el análisis se guarda la información en el siguiente archivo .csv (comma separated values)
+
+```{r}
+clean<-redwine[c(2,3,10,11,12)]
+write.csv(clean,'redwine_clean.csv')
+```
+
+
+# 6. CONCLUSIONES
+1. Las diferentes columnas que presenta la base de datos no presentan una distribución normal. Lo anterior se logra concluir al rechazar la hipotesis nula, basado en el valor de p el cual es muy inferior al rango de 0.05. Esto se refleja en la alta subjetividad que presenta la base de datos, al estar basada en la percepción de calidad de diferentes personas.
+
+2. El tipo de base de datos que presenta el documento analizado para la presente práctica presenta una mejor reducción de dimensionalidad a través del análisis de correlación existente entre las variables independientes y la dependiente (QUALITY), ya que el modelo PCA únicamente permite reducir dos dimensiones con un 98% de precisión. Del análisis de correlación se logra determinar que las variables que presentan una incidencia mayor en el QUALITY del vino son: alcohol, sulfatos, la acidez volatil,y el acido cítrico.
+
+3. Las variables seleccionadas presentan valores extremos. Sin embargo, son valores que se encuentran dentro de los rangos normales de un vino, por tanto no se pueden considerar como valores extremos. La variable sulfatos es la cual presenta una mayor cantidad de valores extremos y se realiza una suave limpieza de los mismos para eliminar los valores más extremos.
+
+4. Se observa que Los modelos de regresión lineal no se ajustan a la variable "quality". A pesar de esto, si podemos deducir que la variable alcohol (presenta el valor de R más alto) es la variable más influyente para determinar la calidad del vino. De los gráficos cuantil- cuantil volvemos a concluir que la distribución de las variables no son normales y presentan una dispersión muy elevada debido a la subjetividad de la variable "quality".
+
+5. De las cuatro variables escogidas a través del modelo de reducción de dimensionalidad, se logra implementar el modelo de arbol de decisión el cual permite confirmar que la variable nivel de alcohol es la que genera un mayor impacto al momento de determinar el nivel de calidad del vino, recurriendo en el 92% de los casos a su uso, seguido por el sulfato con un 77.18%. Las otras dos variables (volatile.acidity y citric.acid) no presentan una incidencia considerable en la calidad del vino
+
+6. Aunque la base de datos tiene un comportamiento bastante subjetivo, se logra identificar que en general los vinos que presentan una calificación mayor (QUALITY), tienden a presentar niveles bajos de acidez volatil, niveles altos de ácido cítrico y niveles de sulfato alto. En lo referente al alcohol, es común que presenten niveles altos, superiores a 10.4 %.
+
+7. Aplicando técnicas de discretización es posible aumentar de manera considerable la precisión del arbol de decisión, considerando que se reduce la volatilildad que presenta la base de datos debido a la subjetividad de los datos. De esta forma se logra reducir la cantidad de valores categóricos de la columna QUALITY de 8 a tan solo 3, permitiendo extraer información mas objetiva de los datos.
+
+
+
+
+
+
+
+
